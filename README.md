@@ -29,6 +29,8 @@ go build -o bin/play      ./cmd/play        # 直接玩 chart.json 的 CLI
 
 ### YouTube 來源
 
+> `yt-dlp` 與 `ffmpeg` 是**執行期**相依，不是編譯期。Release binary 不裝也能跑、本機音檔也能玩，只有要用 URL 時才需要這兩個工具。沒裝就用 URL 會吃到明確錯誤訊息提示 `brew install …`。
+
 先安裝 `yt-dlp` 與 `ffmpeg`：
 ```bash
 # macOS
