@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14         # Apple Silicon
+            goos: darwin
+            goarch: arm64
+          - runner: macos-13         # Intel
+            goos: darwin
+            goarch: amd64
+          - runner: ubuntu-latest
+            goos: linux
+            goarch: amd64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Install ALSA (linux only)
+        if: matrix.goos == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev
+
+      - name: Build binaries
+        env:
+          CGO_ENABLED: '1'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p dist
+          go build -ldflags="-s -w" -o dist/tempo-tty ./cmd/tempo-tty
+          go build -ldflags="-s -w" -o dist/play      ./cmd/play
+          go build -ldflags="-s -w" -o dist/analyze   ./cmd/analyze
+
+      - name: Archive
+        run: |
+          NAME=tempo-tty-${{ matrix.goos }}-${{ matrix.goarch }}
+          cp README.md dist/
+          tar -czf ${NAME}.tar.gz -C dist tempo-tty play analyze README.md
+          shasum -a 256 ${NAME}.tar.gz > ${NAME}.tar.gz.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            tempo-tty-*.tar.gz
+            tempo-tty-*.sha256
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la dist/
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.sha256
+          generate_release_notes: true
+          body: |
+            ## tempo-tty ${{ github.ref_name }}
+
+            Terminal rhythm game in Go. Auto-generates charts from any audio file (mp3/wav/ogg/flac) or YouTube URL via spectral flux onset detection.
+
+            ### Install
+
+            Download the archive for your platform, extract, and put the binaries on your PATH:
+
+            ```bash
+            tar -xzf tempo-tty-<os>-<arch>.tar.gz
+            ./tempo-tty
+            ```
+
+            ### Optional: YouTube support
+
+            For URL playback, install `yt-dlp` and `ffmpeg`:
+
+            ```bash
+            # macOS
+            brew install yt-dlp ffmpeg
+
+            # Linux
+            sudo apt install yt-dlp ffmpeg
+            ```
