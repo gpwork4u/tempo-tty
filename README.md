@@ -2,6 +2,17 @@
 
 純 Go 寫的終端機節奏遊戲。讀取音檔自動抽出鼓點/bass 產生譜面，在 TTY 上玩。
 
+## Quick start
+
+裝好 `yt-dlp` 與 `ffmpeg`（macOS：`brew install yt-dlp ffmpeg`），下載對應平台的 release，然後：
+
+```bash
+./tempo-tty 'https://youtu.be/dQw4w9WgXcQ'
+```
+
+會自動下載音檔 → spectral flux 抽 onset → 產譜面 → 直接進遊戲。
+按 `D F J K` 跟著節奏點，遊戲中按 `[` / `]` 即時微調 offset。
+
 ## Build
 
 ```bash
