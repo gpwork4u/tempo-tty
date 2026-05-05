@@ -17,12 +17,24 @@ jobs:
           - runner: macos-14         # Apple Silicon
             goos: darwin
             goarch: arm64
-          - runner: macos-13         # Intel
+            cgo: '1'
+            archive: tar.gz
+          - runner: macos-13         # Intel Mac
             goos: darwin
             goarch: amd64
+            cgo: '1'
+            archive: tar.gz
           - runner: ubuntu-latest
             goos: linux
             goarch: amd64
+            cgo: '1'
+            archive: tar.gz
+          - runner: ubuntu-latest    # cross-compile, no cgo on windows (purego)
+            goos: windows
+            goarch: amd64
+            cgo: '0'
+            archive: zip
+            ext: '.exe'
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +43,7 @@ jobs:
         with:
           go-version: '1.24'
 
-      - name: Install ALSA (linux only)
+      - name: Install ALSA (linux native only)
         if: matrix.goos == 'linux'
         run: |
           sudo apt-get update
@@ -39,27 +51,37 @@ jobs:
 
       - name: Build binaries
         env:
-          CGO_ENABLED: '1'
+          CGO_ENABLED: ${{ matrix.cgo }}
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p dist
-          go build -ldflags="-s -w" -o dist/tempo-tty ./cmd/tempo-tty
-          go build -ldflags="-s -w" -o dist/play      ./cmd/play
-          go build -ldflags="-s -w" -o dist/analyze   ./cmd/analyze
+          go build -ldflags="-s -w" -o dist/tempo-tty${{ matrix.ext }} ./cmd/tempo-tty
+          go build -ldflags="-s -w" -o dist/play${{ matrix.ext }}      ./cmd/play
+          go build -ldflags="-s -w" -o dist/analyze${{ matrix.ext }}   ./cmd/analyze
 
-      - name: Archive
+      - name: Archive (tar.gz)
+        if: matrix.archive == 'tar.gz'
         run: |
           NAME=tempo-tty-${{ matrix.goos }}-${{ matrix.goarch }}
           cp README.md dist/
           tar -czf ${NAME}.tar.gz -C dist tempo-tty play analyze README.md
           shasum -a 256 ${NAME}.tar.gz > ${NAME}.tar.gz.sha256
 
+      - name: Archive (zip)
+        if: matrix.archive == 'zip'
+        run: |
+          NAME=tempo-tty-${{ matrix.goos }}-${{ matrix.goarch }}
+          cp README.md dist/
+          cd dist && zip -q ../${NAME}.zip tempo-tty.exe play.exe analyze.exe README.md
+          cd .. && shasum -a 256 ${NAME}.zip > ${NAME}.zip.sha256
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.goos }}-${{ matrix.goarch }}
           path: |
             tempo-tty-*.tar.gz
+            tempo-tty-*.zip
             tempo-tty-*.sha256
 
   release:
@@ -78,6 +100,7 @@ jobs:
         with:
           files: |
             dist/*.tar.gz
+            dist/*.zip
             dist/*.sha256
           generate_release_notes: true
           body: |
@@ -85,18 +108,33 @@ jobs:
 
             Terminal rhythm game in Go. Auto-generates charts from any audio file (mp3/wav/ogg/flac) or YouTube URL via spectral flux onset detection.
 
+            ### Downloads
+
+            | Platform | File |
+            |----------|------|
+            | Apple Silicon Mac | `tempo-tty-darwin-arm64.tar.gz` |
+            | Intel Mac (x86_64) | `tempo-tty-darwin-amd64.tar.gz` |
+            | Linux (x86_64) | `tempo-tty-linux-amd64.tar.gz` |
+            | Windows (x86_64) | `tempo-tty-windows-amd64.zip` |
+
             ### Install
 
-            Download the archive for your platform, extract, and put the binaries on your PATH:
-
             ```bash
+            # macOS / Linux
             tar -xzf tempo-tty-<os>-<arch>.tar.gz
             ./tempo-tty
             ```
 
+            ```powershell
+            # Windows
+            Expand-Archive tempo-tty-windows-amd64.zip
+            cd tempo-tty-windows-amd64
+            .\tempo-tty.exe
+            ```
+
             ### Optional: YouTube support
 
-            For URL playback, install `yt-dlp` and `ffmpeg`:
+            Install `yt-dlp` and `ffmpeg`:
 
             ```bash
             # macOS
@@ -104,4 +142,7 @@ jobs:
 
             # Linux
             sudo apt install yt-dlp ffmpeg
+
+            # Windows
+            winget install yt-dlp.yt-dlp Gyan.FFmpeg
             ```
