@@ -28,11 +28,32 @@ go build -o bin/play      ./cmd/play        # 直接玩 chart.json 的 CLI
 之後選同一首歌會秒進。要重新分析就在選擇器上把游標停在歌上按 `r`。
 
 ### YouTube 來源
-在檔案選擇器按 `u` 貼上 YouTube 網址，會自動下載到 `~/.cache/tempo-tty/<videoID>.mp3`，再走分析流程。需要先安裝：
+
+先安裝 `yt-dlp` 與 `ffmpeg`：
 ```bash
+# macOS
 brew install yt-dlp ffmpeg
+
+# Linux
+sudo apt install yt-dlp ffmpeg
+
+# Windows
+winget install yt-dlp.yt-dlp Gyan.FFmpeg
 ```
-快取下次重用，不會重下。
+
+兩種用法：
+
+```bash
+# 1) 命令列直通
+./bin/tempo-tty 'https://youtu.be/dQw4w9WgXcQ'
+./bin/tempo-tty 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+
+# 2) 進入檔案選擇器後按 u 貼網址
+./bin/tempo-tty
+```
+
+下載後音檔快取在 `~/.cache/tempo-tty/<videoID>.mp3`，譜面快取在 `~/.cache/tempo-tty/<videoID>.chart.json`，下次同一支秒進。
+yt-dlp 支援的網站不只 YouTube（Bandcamp、SoundCloud 等也行，未全測）。
 
 設定（包含 offset、預設目錄、按鍵等）寫入 `~/.config/tempo-tty/config.json`。
 
