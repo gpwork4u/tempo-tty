@@ -1,0 +1,21 @@
+bin/
+*.chart.json
+chart.json
+
+# audio test artifacts (keep test.wav out of repo)
+*.wav
+*.mp3
+*.ogg
+*.flac
+*.m4a
+
+# editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# build artifacts
+*.exe
+*.test
+*.out
